@@ -11,6 +11,7 @@ from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import PreTokenizer
 from tokenizers.normalizers import Normalizer
 from tokenizers.decoders import Decoder
+from DPSplitter import DPSplitter
 from typing import List
 
 
@@ -22,6 +23,7 @@ class CustomPreTokenizer:
     def __init__(self, vocab=None):
         # make sure you only retain keys
         self.vocab = vocab
+        self.dp_splitter = DPSplitter(vocab)
 
     # def odd_number_split(
     #         self, i: int, normalized_string: NormalizedString
@@ -36,40 +38,9 @@ class CustomPreTokenizer:
     #     # Don't forget the last one
     #     splits.append(normalized_string[last:])
     #     return splits
-
-    def present_in_vocab(self, str):
-        return str in self.vocab
-
-    def dp_split(self, i: int, normalized_string: NormalizedString):
-        splits = []
+    def dp_split(self, i: int, normalized_string: NormalizedString) -> List[NormalizedString]:
         input = str(normalized_string)
-        len_input = len(input)
-
-        # dp[i][j] = None
-        dp = [[None for i in range(len_input)] for j in range(len_input)]
-
-        # TODO: this makes the BIG simplifying assumption that single character strings
-        # are present in the vocabulary, and this assumption can break for other languages. Handle properly
-        for i in range(len_input):
-            dp[i][i] = [input[i]]
-
-        for len_str in range(1, len_input + 1):
-            for i in range(len_input):
-                # if end index is invalid, skip
-                if i + len_str - 1 >= len_input:
-                    continue
-
-                j = i + len_str - 1
-
-                if self.present_in_vocab(input[i:j + 1]):
-                    dp[i][j] = [input[i:j + 1]]
-                else:
-                    for k in range(i, j):
-                        curr_split = dp[i][k] + dp[k + 1][j]
-                        if dp[i][j] is None or len(curr_split) < len(dp[i][j]):
-                            dp[i][j] = curr_split
-
-        return dp[0][len_input - 1]
+        return self.dp_splitter.split(input)
 
     def pre_tokenize(self, pretok: PreTokenizedString):
         pretok.split(self.dp_split)
@@ -79,15 +50,15 @@ def main():
     with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    tokenizer = llama_tokenizer(config['llama_tokenizer_path'])
+    tokenizer = AutoTokenizer.from_pretrained((config['llama_tokenizer_path']))
     normalizer = tokenizer.backend_tokenizer.normalizer
     original_pre_tokenizer = tokenizer.backend_tokenizer.pre_tokenizer
     post_processor = tokenizer.backend_tokenizer.post_processor
     model = tokenizer.backend_tokenizer.model
     bla = BPE()
     tokenizer.backend_tokenizer.pre_tokenizer = Sequence([original_pre_tokenizer, PreTokenizer.custom(
-        CustomPreTokenizer(vocab=tokenizer.get_vocab()))])
-    tokens = tokenizer.encode("Hey123")
+        CustomPreTokenizer(vocab=tokenizer.get_vocab().keys()))])
+    tokens = tokenizer.encode("undesirable123")
     # test = tokenizer.backend_tokenizer.pre_tokenizer.pre_tokenize_str("Hey this is suyash")
     # print(test)
     print(tokenizer.decode(tokens))
