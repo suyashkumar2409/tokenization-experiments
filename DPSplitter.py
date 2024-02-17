@@ -1,8 +1,4 @@
-from tokenizers import Tokenizer, Regex, NormalizedString, PreTokenizedString
 from typing import List
-from transformers import AutoTokenizer
-from tokenizers.normalizers import NFKC
-import yaml
 
 
 class DPSplitter:
@@ -22,7 +18,7 @@ class DPSplitter:
     def _split(self, input: str) -> List[int]:
         len_input = len(str(input))
 
-        # dp[i][j] = None
+        # dp[i][j] = the list of indices that mark the splits
         dp = [[[] for i in range(len_input)] for j in range(len_input)]
 
         # TODO: this makes the BIG simplifying assumption that single character strings
@@ -32,7 +28,7 @@ class DPSplitter:
 
         for len_str in range(1, len_input + 1):
             for i in range(len_input):
-                # if end index is invalid, skip
+                # if end index is greater than length of input, skip
                 if i + len_str - 1 >= len_input:
                     continue
 
@@ -47,23 +43,3 @@ class DPSplitter:
                             dp[i][j] = curr_split
 
         return dp[0][len_input - 1]
-
-
-if __name__ == "__main__":
-    with open("config.yaml") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-
-    tokenizer = AutoTokenizer.from_pretrained((config['llama_tokenizer_path']))
-
-    input = "undesirabledesireliabledesirable"
-    vocab = tokenizer.get_vocab()
-    vocab['desirable'] = -1
-    vocab['desi'] = -2
-
-    dp_splitter = DPSplitter(vocab)
-    splits = dp_splitter.split(input)
-
-    print(splits)
-
-    tokens = tokenizer.encode(input)
-    print(" ".join([tokenizer.decode(token) for token in tokens]))
