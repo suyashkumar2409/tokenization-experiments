@@ -55,9 +55,10 @@ if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained((config['llama_tokenizer_path']))
 
-    input = "undesirable"
+    input = "undesirabledesireliabledesirable"
     vocab = tokenizer.get_vocab()
-    vocab.add("desirable")
+    vocab['desirable'] = -1
+    vocab['desi'] = -2
 
     dp_splitter = DPSplitter(vocab)
     splits = dp_splitter.split(input)
