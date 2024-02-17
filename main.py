@@ -39,11 +39,18 @@ class CustomPreTokenizer:
     #     splits.append(normalized_string[last:])
     #     return splits
     def dp_split(self, i: int, normalized_string: NormalizedString) -> List[NormalizedString]:
-        input = str(normalized_string)
-        return self.dp_splitter.split(input)
+        splits = self.dp_splitter.split(normalized_string)
+        return splits
 
     def pre_tokenize(self, pretok: PreTokenizedString):
         pretok.split(self.dp_split)
+
+
+def get_tokens_fn(tokenizer):
+    def get_tokens(row):
+        return tokenizer.encode(row["code"])
+
+    return get_tokens
 
 
 def main():
@@ -51,18 +58,29 @@ def main():
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     tokenizer = AutoTokenizer.from_pretrained((config['llama_tokenizer_path']))
-    normalizer = tokenizer.backend_tokenizer.normalizer
+    original_tokenizer = AutoTokenizer.from_pretrained((config['llama_tokenizer_path']))
     original_pre_tokenizer = tokenizer.backend_tokenizer.pre_tokenizer
-    post_processor = tokenizer.backend_tokenizer.post_processor
-    model = tokenizer.backend_tokenizer.model
-    bla = BPE()
     tokenizer.backend_tokenizer.pre_tokenizer = Sequence([original_pre_tokenizer, PreTokenizer.custom(
         CustomPreTokenizer(vocab=tokenizer.get_vocab().keys()))])
-    tokens = tokenizer.encode("undesirable123")
-    # test = tokenizer.backend_tokenizer.pre_tokenizer.pre_tokenize_str("Hey this is suyash")
-    # print(test)
-    print(tokenizer.decode(tokens))
-    mbpp_dataset = load_dataset(config['mbpp_path'])
+
+    # tokens = tokenizer.encode("undesirable123")
+    # # test = tokenizer.backend_tokenizer.pre_tokenizer.pre_tokenize_str("Hey this is suyash")
+    # # print(test)
+    # print(tokenizer.decode(tokens))
+
+    mbpp_dataset = load_dataset(config['mbpp_path'], split="test")
+
+    original_tokenizer_mapper = get_tokens_fn(original_tokenizer)
+    new_tokenizer_mapper = get_tokens_fn(tokenizer)
+
+    original_tokens = []
+    new_tokens = []
+
+    for row in mbpp_dataset:
+        original_tokens.append(original_tokenizer_mapper(row))
+        new_tokens.append(new_tokenizer_mapper(row))
+
+    print("hey")
 
 
 if __name__ == "__main__":
