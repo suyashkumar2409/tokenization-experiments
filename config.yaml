@@ -1,0 +1,3 @@
+#llama_tokenizer_path: '/Users/suyashkr/tokenization/llama'
+llama_tokenizer_path: 'gpt2'
+mbpp_path: 'mbpp'
