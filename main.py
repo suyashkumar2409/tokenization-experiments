@@ -62,12 +62,68 @@ if __name__ == "__main__":
 
     original_tokenizer = AutoTokenizer.from_pretrained((config['tokenizer_path']))
 
-    dp_tokenizer = AutoTokenizer.from_pretrained((config['tokenizer_path']))
-    original_pre_tokenizer = dp_tokenizer.backend_tokenizer.pre_tokenizer
-    # A new pretokenizer step has been added that tokenizes based on the dp splitting mechanism
-    dp_tokenizer.backend_tokenizer.pre_tokenizer = Sequence([original_pre_tokenizer, PreTokenizer.custom(
-        CustomPreTokenizer(vocab=dp_tokenizer.get_vocab().keys()))])
+    llamatokenizer = AutoTokenizer.from_pretrained('/Users/suyashkr/tokenization/llama', use_fast=False,
+                                                   add_bos_token=False)
 
-    mbpp_dataset = load_dataset(config['mbpp_path'], split="test")
+    from bidict import bidict
 
-    evaluate(original_tokenizer, dp_tokenizer, mbpp_dataset)
+    input = "Hey"
+    tokens = llamatokenizer.encode(input)
+    vocab = llamatokenizer.get_vocab()
+
+    vocab_bidict = bidict(vocab)
+    temp_tokens = llamatokenizer._tokenize("Hey")
+
+    from tokenizers.pre_tokenizers import WhitespaceSplit
+
+    pre_tokenizer = WhitespaceSplit()
+    white_space_pretokens = pre_tokenizer.pre_tokenize_str("Hey       This is Suyash")
+
+    import re
+
+    # Pattern to match words or sequences of spaces
+    pattern = re.compile(r'\S+|\s+')
+
+    result = pattern.findall(input)
+
+    SPIECE_UNDERLINE = "▁"
+
+    result = [token[1:] if token[0] == ' ' else token for token in result]
+    result = [token for token in result if len(token) > 0]
+    result = [SPIECE_UNDERLINE + token if not token.isspace() else token for token in result]
+    result = [token.replace(' ', SPIECE_UNDERLINE) for token in result]
+
+    print(result)
+
+
+    def tokenize(text):
+        splits = [[l for l in word] for word in text]
+        for pair, merge in vocab.items():
+            for idx, split in enumerate(splits):
+                i = 0
+                while i < len(split) - 1:
+                    if split[i] == pair[0] and split[i + 1] == pair[1]:
+                        split = split[:i] + [merge] + split[i + 2:]
+                    else:
+                        i += 1
+                splits[idx] = split
+
+        return sum(splits, [])
+
+
+    result_tokenize = tokenize(result)
+
+    print(white_space_pretokens)
+
+    for token in tokens:
+        print(f"Original token {token} Decoded form {llamatokenizer.decode(token)}")
+
+    # dp_tokenizer = AutoTokenizer.from_pretrained((config['tokenizer_path']))
+    # original_pre_tokenizer = dp_tokenizer.backend_tokenizer.pre_tokenizer
+    # # A new pretokenizer step has been added that tokenizes based on the dp splitting mechanism
+    # dp_tokenizer.backend_tokenizer.pre_tokenizer = Sequence([original_pre_tokenizer, PreTokenizer.custom(
+    #     CustomPreTokenizer(vocab=dp_tokenizer.get_vocab().keys()))])
+    #
+    # mbpp_dataset = load_dataset(config['mbpp_path'], split="test")
+    #
+    # evaluate(original_tokenizer, dp_tokenizer, mbpp_dataset)
